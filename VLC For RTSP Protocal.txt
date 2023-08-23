@@ -1,0 +1,10 @@
+VLC For RTSP Protocal
+
+install
+1.sudo apt update
+2.sudo apt install vlc
+
+enable
+1.vlc
+2.cvlc v4l2:///dev/video5 --sout '#transcode{vcodec=h264,acodec=none}:rtp{sdp=rtsp://:8554/}'
+#video5 คือ port กล้องที่ใช้

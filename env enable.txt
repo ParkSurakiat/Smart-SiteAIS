@@ -1,0 +1,15 @@
+env enable
+
+install
+1.sudo apt install virtualenv
+2.mkdir ~/python-environments && cd ~/python-environments #ที่อยู่ directory ที่ต้องการใช้ env
+3. virtualenv env
+4.ls env/lib
+
+Activate Your Virtual Environment
+
+1.source env/bin/activate
+
+Deactivate a Virtual Environment\
+
+1. deactivate
