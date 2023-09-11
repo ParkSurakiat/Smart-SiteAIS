@@ -41,7 +41,7 @@ Time_interval_print2 = 2
 
 ### GPIO ###
 # Define the GPIO pin number (e.g., GPIO 123)
-led_gpio_pin_D = 121
+led_gpio_pin_D = 127
 led_gpio_pin_H = 125
 led_gpio_pin_GY = 126
 subprocess.run(['gpio', '-g', 'mode', str(led_gpio_pin_D), 'out'])
@@ -49,12 +49,12 @@ subprocess.run(['gpio', '-g', 'mode', str(led_gpio_pin_H), 'out'])
 subprocess.run(['gpio', '-g', 'mode', str(led_gpio_pin_GY), 'out'])
 # subprocess.run(['gpio', '-g', 'mode', str(button_gpio_pin), 'in'])
 
-led_state = 0  # กำหนดสถานะเริ่มต้นของ LED เป็นปิด
+led_state = 1  # กำหนดสถานะเริ่มต้นของ LED เป็นปิด
 subprocess.run(['gpio', '-g', 'write', str(led_gpio_pin_D), str(led_state)])
 
 ### I2C ###
 # กำหนดหมายเลขของ I2C Bus
-bus_number = 6
+bus_number = 7
 # กำหนดที่อยู่ของ GY-521
 device_address = 0x68  # ที่อยู่เริ่มต้นของ GY-521
 i2c_address = 0x40  # ที่อยู่ I2C ของ SHT20
@@ -224,7 +224,7 @@ while True:
         out = cv2.VideoWriter(output_mp4AndJpg_path + f'Video_{formatted_datetime}.mp4', fourcc, frame_rate, (frame_width, frame_height))
         recording = True
         print("Start recording")
-        led_state = 1 #door open state
+        led_state = 0 #door open state
         subprocess.run(['gpio', '-g', 'write', str(led_gpio_pin_D), str(led_state)])
         
     elif cv2.waitKey(1) & 0xFF == ord('k') and recording:
@@ -237,7 +237,7 @@ while True:
             last_snapshot_time = 0
             print("Stop recording")
             print("SnapShot Success")
-            led_state = 0 #door close state
+            led_state = 1 #door close state
             subprocess.run(['gpio', '-g', 'write', str(led_gpio_pin_D), str(led_state)])
 
     if recording == True :
@@ -265,7 +265,7 @@ while True:
         print("Disconnect Camera")
         # subprocess.run(['gpio', '-g', 'mode', str(led_gpio_pin), 'in'])
         subprocess.run(['gpio', '-g', 'write', str(led_gpio_pin_H), str(0)])
-        subprocess.run(['gpio', '-g', 'write', str(led_gpio_pin_D), str(0)])
+        subprocess.run(['gpio', '-g', 'write', str(led_gpio_pin_D), str(1)])
 
         break
 
