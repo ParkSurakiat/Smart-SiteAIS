@@ -234,7 +234,9 @@ while True:
     
     if not ret:
         print("เกิดข้อผิดพลาดในการอ่านเฟรมภาพ")
+        subprocess.run("sudo init 6", shell=True)
         break
+    
     # แสดงภาพที่ได้จากกล้อง
     cv2.imshow("Camera Steaming", frame)
 
