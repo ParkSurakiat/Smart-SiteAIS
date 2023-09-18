@@ -5,11 +5,14 @@ import serial
 import subprocess
 import smbus2 as smbus
 
+import modbus_tk
+import modbus_tk.defines as cst
+from modbus_tk import modbus_rtu
 
 # cvlc v4l2:///dev/video5 --sout '#transcode{vcodec=h264,acodec=none}:rtp{sdp=rtsp://:8554/}'
 
 # กำหนด URL ของกล้องผ่าน RTSP
-rtsp_url = "rtsp://192.168.194.243:8554/"
+rtsp_url = "rtsp://192.168.11.104:8554/"
 
 # เปิดการเชื่อมต่อกับกล้อง
 cap = cv2.VideoCapture(rtsp_url)
@@ -20,7 +23,7 @@ frame_height = 480
 frame_rate = 15
 
 #ที่อยู่ของ mp4 และ video ที่ถูกบันทึก
-output_mp4AndJpg_path = '/home/linaro/AIS_Smart_Site/Photo_and_Video/'
+output_mp4AndJpg_path = '/home/linaro/ASI_SS/Photo_and_Video/'
 
 # กำหนดระยะเวลาหน่วงระหว่างการบันทึก snapshot (วินาที)
 snapshot_interval_P1 = 1 #ทุกๆ 1 วิ
@@ -37,16 +40,20 @@ last_time_print = 0
 Time_interval_print = 2
 last_time_print2 = 0
 Time_interval_print2 = 2
-
+#timeMod
+last_time_Mod = 0
+Time_interval_Mod = 3
 
 ### GPIO ###
 # Define the GPIO pin number (e.g., GPIO 123)
 led_gpio_pin_D = 127
 led_gpio_pin_H = 125
 led_gpio_pin_GY = 126
+led_gpio_pin_TCPIP = 123
 subprocess.run(['gpio', '-g', 'mode', str(led_gpio_pin_D), 'out'])
 subprocess.run(['gpio', '-g', 'mode', str(led_gpio_pin_H), 'out'])
 subprocess.run(['gpio', '-g', 'mode', str(led_gpio_pin_GY), 'out'])
+subprocess.run(['gpio', '-g', 'mode', str(led_gpio_pin_TCPIP), 'out'])
 # subprocess.run(['gpio', '-g', 'mode', str(button_gpio_pin), 'in'])
 
 led_state = 1  # กำหนดสถานะเริ่มต้นของ LED เป็นปิด
@@ -69,6 +76,17 @@ busGY.write_byte_data(device_address, 0x6B, 0)
 data = busSHT.read_i2c_block_data(i2c_address, 0xE3, 4) 
 #OTP
 serial_port = serial.Serial('/dev/ttyS0', 115200) 
+
+logger = modbus_tk.utils.create_logger("console")
+
+#Connect to the slave
+PORT = '/dev/ttyUSB0'
+master = modbus_rtu.RtuMaster(
+    serial.Serial(port=PORT, baudrate=115200, bytesize=8, parity='N', stopbits=1, xonxoff=0)
+)
+master.set_timeout(1)
+master.set_verbose(True)
+logger.info("connected")
 
 # ตรวจสอบว่าเชื่อมต่อกล้องสำเร็จหรือไม่
 if not cap.isOpened():
@@ -171,32 +189,36 @@ while True:
         print("ความเร็วในแกน X (g): {:.2f}".format(accel_x))
         print("ความเร็วในแกน Y (g): {:.2f}".format(accel_y))
         print("ความเร็วในแกน Z (g): {:.2f}".format(accel_z))
+        accel_x_rtu = round(accel_x, 2)*100
+        accel_y_rtu = round(accel_y, 2)*100
+        accel_z_rtu = round(accel_z, 2)*100
 
         print("อัตราความเร็วในแกน X (deg/s): {:.2f}".format(gyro_x))
         print("อัตราความเร็วในแกน Y (deg/s): {:.2f}".format(gyro_y))
         print("อัตราความเร็วในแกน Z (deg/s): {:.2f}".format(gyro_z))
+        gyro_x_rtu = round(gyro_x, 2)*100
+        gyro_y_rtu = round(gyro_y, 2)*100
+        gyro_z_rtu = round(gyro_z, 2)*100
 
         print("-" * 20)
-
 
     # แปลงข้อมูลเป็นค่าอุณหภูมิ
     raw_temp = (data[0] << 8) + data[1]
     temperature = -46.85 + (175.72 * raw_temp / 65536.0)
-
+    temp_rtu = round(temperature, 2)*100
     # อ่านข้อมูลความชื้นจากเซ็นเซอร์ SHT20
     data_humidity = busSHT.read_i2c_block_data(i2c_address, 0xE5, 2)
 
     # แปลงข้อมูลเป็นค่าความชื้น
     raw_humidity = (data_humidity[0] << 8) + data_humidity[1]
     humidity = -6.0 + (125.0 * raw_humidity / 65536.0)
-
+    hum_rtu = round(humidity, 2)*100
     # แสดงผลค่า
     current_time_print = time.time()
     if current_time_print - last_time_print >= Time_interval_print:
         last_time_print = current_time_print
         print("Temperature:", temperature, "°C")
         print("Humidity:", humidity, "%")
-
         
     # อ่านเฟรมภาพจากกล้อง
     ret, frame = cap.read()
@@ -260,13 +282,54 @@ while True:
                 last_snapshot_time = current_time  # อัปเดตเวลาของ snapshot ล่าสุด
                 print(f"Saved snapshot: {snapshot_path}")
     # print("LED : ", led_state)
+
+
+    #BLUETOOTH
+    def check_internet_connection():
+        try:
+            subprocess.check_output(["sudo", "ping", "-c", "1", "192.168.11.57"])
+            return True
+        except subprocess.CalledProcessError:
+            return False
+
+        if check_internet_connection() == True:
+            # print("Internet is connected.")
+            subprocess.run(['gpio', '-g', 'write', str(led_gpio_pin_TCPIP), str(1)])
+
+        else:
+            # print("Internet is not connected.")
+            subprocess.run(['gpio', '-g', 'write', str(led_gpio_pin_TCPIP), str(0)])
     
+    # def Mod():
+    #     current_time_Mod = time.time()
+    #     register_values = [5, 545, 123, 456]
+    #     # Write multiple registers starting at address 0
+    #     master.execute(1, cst.WRITE_MULTIPLE_REGISTERS, 0, output_value=register_values)
+    
+    def Mod():
+        current_time_Mod = time.time()
+        
+        try:
+            # Define the register values you want to write
+            register_values = [int(temp_rtu), int(hum_rtu), int(accel_x_rtu), int(accel_y_rtu), int(accel_z_rtu), int(gyro_x_rtu), int(gyro_y_rtu), int(gyro_z_rtu)]
+
+            # Write multiple registers starting at address 0
+            master.execute(1, cst.WRITE_MULTIPLE_REGISTERS, 0, output_value=register_values)
+
+        except modbus_tk.modbus.ModbusError as exc:
+            logger.error("%s- Code=%d", exc, exc.get_exception_code())
+        
+    current_time_Mod = time.time()
+    if current_time_Mod - last_time_Mod >= Time_interval_Mod:
+        last_time_Mod = current_time_Mod
+        Mod()
+
+
     if cv2.waitKey(1) & 0xFF == ord('q'):
         print("Disconnect Camera")
         # subprocess.run(['gpio', '-g', 'mode', str(led_gpio_pin), 'in'])
         subprocess.run(['gpio', '-g', 'write', str(led_gpio_pin_H), str(0)])
         subprocess.run(['gpio', '-g', 'write', str(led_gpio_pin_D), str(1)])
-
         break
 
 # คืนทรัพยากร
