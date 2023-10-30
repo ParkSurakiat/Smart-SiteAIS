@@ -111,9 +111,12 @@ ModbusMaster node;
 
 void setup() 
 {
+  
+  Wire.begin();  // เริ่มใช้งาน I2C
+  Serial.begin(9600);  // เริ่มใช้งาน Serial Monitor
   //  Reset NSRT Button 
 
-   pinMode(NRST_PIN, OUTPUT);
+  pinMode(NRST_PIN, OUTPUT);
 
 
   // >>>>  Modbus register RS-485   <<<<<<<<<
@@ -294,6 +297,11 @@ void loop()
     mqttClient.publish("Solar/MPPT_Load", jsonString_Load.c_str());
     mqttClient.publish("Solar/MPPT_Batt", jsonString_Batt.c_str()); 
     mqttClient.publish("Solar/MPPT_Over", jsonString_Over.c_str());
+
+    // ส่งข้อมูลผ่าน I2C
+    Wire.beginTransmission(device_address); // เริ่มการสื่อสาร
+    Wire.write(data_to_send, 2); // ส่งข้อมูล
+    Wire.endTransmission(); // สิ้นสุดการสื่อสาร
 
     delay(5000);
   }
